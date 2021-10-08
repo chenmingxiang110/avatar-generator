@@ -1,4 +1,6 @@
 # avatar-generator
 Generate different types of random avatars with deep learning.
 
-## Generate Github-like avatars
+## 1. Generate Github-like avatars
+
+<img src="imgs/example_githublike.png" width="800" height="400">
