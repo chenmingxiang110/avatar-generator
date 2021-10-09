@@ -19,10 +19,10 @@ if __name__=="__main__":
         print("Wrong Input!")
         print("Example: python generate_vague_athletes.py ./examples/avatars_vague_athletes/ 10 96")
         print("where 10 represents 10 output avatars, and 96 represents the size of images")
-    
+
     if params is not None:
         root, num, size = params
-        generator = Generator("./models/ae_decoder.pth", 4)
+        generator = Generator("./models/ae_decoder_20211009_1.pth", 8)
         for i in trange(num):
             filename = os.path.join(root, str(i+1)+".png")
             generator.generate_png(filename, size)
