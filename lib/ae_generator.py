@@ -47,13 +47,21 @@ class Decoder(nn.Module):
             nn.ConvTranspose2d(16, 32, 2, stride=2, padding=0),
             ResidualCNN(32, 32, 1),
             ResidualCNN(32, 32, 1),
+            ResidualCNN(32, 32, 1),
             nn.ConvTranspose2d(32, 64, 2, stride=2, padding=0),
+            ResidualCNN(64, 64, 1),
+            ResidualCNN(64, 64, 1),
             ResidualCNN(64, 64, 1),
             ResidualCNN(64, 64, 1),
             nn.ConvTranspose2d(64, 128, 2, stride=2, padding=0),
             ResidualCNN(128, 128, 1),
             ResidualCNN(128, 128, 1),
+            ResidualCNN(128, 128, 1),
+            ResidualCNN(128, 128, 1),
+            ResidualCNN(128, 128, 1),
+            ResidualCNN(128, 128, 1),
             nn.ConvTranspose2d(128, 256, 2, stride=2, padding=0),
+            ResidualCNN(256, 256, 1),
             ResidualCNN(256, 256, 1),
             ResidualCNN(256, 256, 1),
             nn.Conv2d(256, 3, 1, stride=1, padding=0),
@@ -78,15 +86,13 @@ class Generator:
         self.decoder = self.decoder.eval()
     
     def generate_rgb(self):
-        hidden = np.array([np.random.normal(0, 0.025, self.hidden_size)]).astype(np.float32)
-        # hidden = (np.random.random([1,4])*0.08-0.04).astype(np.float32)
+        hidden = np.array([np.random.normal(0, 0.02, self.hidden_size)]).astype(np.float32)
         hs_random = self.decoder(torch.from_numpy(hidden).to(self.device)).detach().cpu().numpy()
         _output = hs_random[0].transpose([1,2,0])[...,::-1]
         return _output
     
     def generate_png(self, output_path, size=160):
-        hidden = np.array([np.random.normal(0, 0.025, self.hidden_size)]).astype(np.float32)
-        # hidden = (np.random.random([1,4])*0.08-0.04).astype(np.float32)
+        hidden = np.array([np.random.normal(0, 0.02, self.hidden_size)]).astype(np.float32)
         hs_random = self.decoder(torch.from_numpy(hidden).to(self.device)).detach().cpu().numpy()
         _output = np.clip(hs_random[0].transpose([1,2,0]) * 255, 0, 255).astype(np.uint8)
         if size!=160:
