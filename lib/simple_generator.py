@@ -1,4 +1,3 @@
-import cv2
 import numpy as np
 
 def generate_githublike():
