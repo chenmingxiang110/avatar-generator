@@ -16,10 +16,10 @@ tqdm
 python generate_githublike.py ./examples/avatars_githublike/ 10 96
 ```
 
-## 2. Young Male Athletes
+## 2. Young Male Athletes (Vague)
 
 <img src="imgs/ae_0.png" width="800" height="100">
 
 ```
-python generate_male_athletes.py ./examples/avatars_male_athletes/ 10 96
+python generate_vague_athletes.py ./examples/avatars_vague_athletes/ 10 96
 ```
