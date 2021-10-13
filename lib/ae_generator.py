@@ -1,6 +1,8 @@
 import os
 import cv2
+import time
 import numpy as np
+import matplotlib.pyplot as plt
 
 import torch
 import torch.nn as nn
@@ -8,9 +10,17 @@ import torch.optim as optim
 import torchvision.utils as vutils
 import torchvision.models as models
 
-from tqdm import trange, tqdm
-
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+
+def count_parameters(model, verbose=True):
+    total_params = 0
+    for name, parameter in model.named_parameters():
+        if not parameter.requires_grad: continue
+        param = parameter.numel()
+        if verbose: print([name, param])
+        total_params+=param
+    if verbose: print(f"Total Trainable Params: {total_params}")
+    return total_params
 
 class ResidualCNN(nn.Module):
     
@@ -34,68 +44,80 @@ class ResidualCNN(nn.Module):
         x = self.act(x)
         return x
 
+class Encoder(nn.Module):
+
+    def __init__(self, hidden_size):
+        super().__init__()
+        self.net = models.resnet18(pretrained=False)
+        self.net.fc = nn.Linear(512, hidden_size)
+
+    def forward(self, x):
+        h = self.net(x)
+        return h
+
 class Decoder(nn.Module):
     
     def __init__(self, hidden_size):
         super().__init__()
         self.net0 = nn.Sequential(
-            nn.Linear(hidden_size, 1600),
+            nn.Linear(hidden_size, 4096),
             nn.LeakyReLU(0.1),
-            nn.BatchNorm1d(1600),
+            nn.BatchNorm1d(4096),
         )
         self.net1 = nn.Sequential(
-            nn.ConvTranspose2d(16, 32, 2, stride=2, padding=0),
-            ResidualCNN(32, 32, 1),
-            ResidualCNN(32, 32, 1),
-            ResidualCNN(32, 32, 1),
-            nn.ConvTranspose2d(32, 64, 2, stride=2, padding=0),
-            ResidualCNN(64, 64, 1),
-            ResidualCNN(64, 64, 1),
-            ResidualCNN(64, 64, 1),
-            ResidualCNN(64, 64, 1),
-            nn.ConvTranspose2d(64, 128, 2, stride=2, padding=0),
-            ResidualCNN(128, 128, 1),
-            ResidualCNN(128, 128, 1),
-            ResidualCNN(128, 128, 1),
-            ResidualCNN(128, 128, 1),
-            ResidualCNN(128, 128, 1),
-            ResidualCNN(128, 128, 1),
-            nn.ConvTranspose2d(128, 256, 2, stride=2, padding=0),
+            nn.ConvTranspose2d(256, 256, 2, stride=2, padding=0),
             ResidualCNN(256, 256, 1),
             ResidualCNN(256, 256, 1),
-            ResidualCNN(256, 256, 1),
-            nn.Conv2d(256, 3, 1, stride=1, padding=0),
+            nn.ConvTranspose2d(256, 128, 2, stride=2, padding=0),
+            ResidualCNN(128, 128, 1),
+            ResidualCNN(128, 128, 1),
+            ResidualCNN(128, 128, 1),
+            ResidualCNN(128, 128, 1),
+            nn.ConvTranspose2d(128, 64, 2, stride=2, padding=0),
+            ResidualCNN(64, 64, 1),
+            ResidualCNN(64, 64, 1),
+            ResidualCNN(64, 64, 1),
+            ResidualCNN(64, 64, 1),
+            ResidualCNN(64, 64, 1),
+            ResidualCNN(64, 64, 1),
+            nn.ConvTranspose2d(64, 32, 2, stride=2, padding=0),
+            ResidualCNN(32, 32, 1),
+            ResidualCNN(32, 32, 1),
+            nn.Conv2d(32, 3, 1, stride=1, padding=0),
             nn.Sigmoid(),
         )
     
     def forward(self, x):
-        h0 = torch.reshape(self.net0(x), [-1, 16, 10, 10])
+        h0 = torch.reshape(self.net0(x), [-1, 256, 4, 4])
         h1 = self.net1(h0)
         return h1
 
 class Generator:
     
-    def __init__(self, path, hidden_size, device=torch.device("cpu")):
-        self.hidden_size = hidden_size
-        self.device = device
+    def __init__(self, model_path, seed_path):
+        self.hidden_size = 256
+        self.device = torch.device("cpu")
         self.decoder = Decoder(self.hidden_size).to(self.device)
-        if device==torch.device("cpu"):
-            self.decoder.load_state_dict(torch.load(path, map_location='cpu'))
-        else:
-            self.decoder.load_state_dict(torch.load(path))
+        self.decoder.load_state_dict(torch.load(model_path, map_location="cpu"))
         self.decoder = self.decoder.eval()
+        self.seeds = np.load(seed_path)
+        self.scale = 0.5
+        self.bias = 1.0
     
-    def generate_rgb(self):
-        hidden = np.array([np.random.normal(0, 0.02, self.hidden_size)]).astype(np.float32)
-        hs_random = self.decoder(torch.from_numpy(hidden).to(self.device)).detach().cpu().numpy()
-        _output = hs_random[0].transpose([1,2,0])[...,::-1]
-        return _output
-    
-    def generate_png(self, output_path, size=160):
-        hidden = np.array([np.random.normal(0, 0.02, self.hidden_size)]).astype(np.float32)
-        hs_random = self.decoder(torch.from_numpy(hidden).to(self.device)).detach().cpu().numpy()
-        _output = np.clip(hs_random[0].transpose([1,2,0]) * 255, 0, 255).astype(np.uint8)
-        if size!=160:
-            _output = cv2.resize(_output, (size, size))
-        cv2.imwrite(output_path, _output)
-        return _output[...,::-1]
+    def generate(self, index=None, do_aug=True):
+        if index is None:
+            index = np.random.randint(self.seeds.shape[0])
+        
+        if do_aug:
+            index1 = np.random.randint(self.seeds.shape[0])
+            rate = np.random.random() * 0.25 + 0.5
+            hidden = self.seeds[index:index+1] * rate + self.seeds[index1:index1+1] * (1-rate)
+
+            hidden*= (1 - self.scale + np.random.random([1,self.hidden_size]) * self.scale * 2)
+            hidden+= np.random.random([1,self.hidden_size]) * self.bias * 2 - self.bias
+        else:
+            hidden = self.seeds[index:index+1]
+        
+        hidden = torch.from_numpy(hidden.astype(np.float32)).to(self.device)
+        hs = self.decoder(hidden).detach().cpu().numpy()[0].transpose([1,2,0])
+        return hs
