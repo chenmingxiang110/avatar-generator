@@ -4,8 +4,11 @@ Generate different types of random avatars.
 ## Requirements
 
 Python3
+
 pytorch>=1.6
+
 cv2>=3.4
+
 tqdm
 
 ## 1. Github-like avatars
