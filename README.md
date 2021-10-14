@@ -11,6 +11,24 @@ cv2>=3.4
 
 tqdm
 
+## 0. Download Pretrained Models
+
+Please download the pretrained models from:
+
+```
+https://drive.google.com/drive/folders/1J_99la18a2ZeIBEPQ2_xqFa_uOxkrZVI?usp=sharing
+```
+
+and put the files under the "models" folder. The filetree should look like:
+
+```
+models
+  |-avatar_02_ae_07_decoder.pth
+  |-avatar_02_ae_07.npy
+  |-avatar_04_cartoon_face_02_decoder.pth
+  |-avatar_04_cartoon_face_02.npy
+```
+
 ## 1. Github-like avatars
 
 <img src="imgs/example_githublike.png" width="800" height="100">
